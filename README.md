@@ -68,6 +68,9 @@ Passwords are never stored in plain text. The `bcrypt()` function hashes the pas
 #### E. Updating Data safely
 When updating, `UserDetail::findOrFail($id)` is used. This automatically returns a `404 Not Found` response if the requested ID doesn't exist. Furthermore, passwords and files are conditionally checked and only updated if new ones are provided in the request form.
 
+#### F. Deleting Data & Files completely
+When a user is deleted, their associated uploaded files are securely removed from the application server filesystem using PHP's `unlink()` function. This prevents "orphan files" from taking up storage space over time. A `file_exists()` check confirms the document is actually there, it is unlinked, and only then is the `$user->delete()` operation executed on the database row to complete the deletion perfectly.
+
 ---
 
 ## 🎯 Important Interview Questions (Revision)

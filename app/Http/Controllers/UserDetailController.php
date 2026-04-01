@@ -8,16 +8,19 @@ use \Illuminate\Http\UploadedFile;
 
 class UserDetailController extends Controller
 {
-    public function index(){
+    public function index()
+    {
         $users = UserDetail::all();
         return view('index', compact('users'));
     }
 
-    public function create(){
+    public function create()
+    {
         return view('create');
     }
 
-    public function store(Request $request){
+    public function store(Request $request)
+    {
 
 
         // $allData = $request->all();
@@ -40,14 +43,14 @@ class UserDetailController extends Controller
             'phone' => 'required|string|max:10',
             'country' => 'required|in:India,USA,UK,Canada,Australia'
 
-        ],[
+        ], [
             'docs.mimes' => 'Only PDF, JPEG, PNG, JPG, and GIF files are allowed..',
         ]);
 
         $skills = implode(',', $request->skills);
         //Handle File Upload..
         $fileName = null;
-        if($request->hasFile('docs')){
+        if ($request->hasFile('docs')) {
             $file = $request->file('docs');
             $fileName = $file->getClientOriginalExtension();
             $file->move(public_path('uploads'), $fileName);
@@ -56,14 +59,14 @@ class UserDetailController extends Controller
         // Insert Data
         UserDetail::create([
             'first_name' => $request->first_name,
-            'last_name'  => $request->last_name,
-            'gender'     => $request->gender,
-            'email'      => $request->email,
-            'password'   => bcrypt($request->password), // Securely hashes the password [2]
-            'skills'     =>  $skills,
-            'docs'       => $fileName,                 // Assumes $fileName is processed beforehand
-            'phone'      => $request->phone,
-            'country'    => $request->country,
+            'last_name' => $request->last_name,
+            'gender' => $request->gender,
+            'email' => $request->email,
+            'password' => bcrypt($request->password), // Securely hashes the password [2]
+            'skills' => $skills,
+            'docs' => $fileName,                 // Assumes $fileName is processed beforehand
+            'phone' => $request->phone,
+            'country' => $request->country,
         ]);
 
         // Redirect with flash message
@@ -77,7 +80,8 @@ class UserDetailController extends Controller
         return view('edit', compact('user'));
     }
 
-    public function update(Request $request, $id){
+    public function update(Request $request, $id)
+    {
 
         $user = UserDetail::findOrFail($id);
 
@@ -124,4 +128,18 @@ class UserDetailController extends Controller
         return redirect()->route('users.index')->with('success', 'User Updated Successfully');
     }
 
+    public function delete($id)
+    {
+        $user = UserDetail::findOrFail($id);
+
+        // Delete the associated file
+        if ($user->docs && file_exists(public_path('uploads/' . $user->docs))) {
+            unlink(public_path('uploads/' . $user->docs));
+        }
+
+        // Delete user
+        $user->delete();
+
+        return redirect()->route('users.index')->with('success', 'User Deleted Successfully');
+    }
 }
