@@ -1,61 +1,96 @@
-# laravel-practice
+# Laravel Practice - User Detail CRUD
 
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+This repository contains a complete Laravel CRUD (Create, Read, Update, Delete) implementation for managing `UserDetail` records. This README serves as a tailored step-by-step revision guide for interviews based on the current codebase.
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+## 🚀 Step-by-Step Implementation Guide
 
-## About Laravel
+### 1. Database Setup & Migration
+A migration file was created for the `user_details` table with the following schema:
+- `first_name` (string)
+- `last_name` (string)
+- `gender` (enum: male, female, other)
+- `email` (string, unique)
+- `password` (string, hashed securely)
+- `skills` (text, stored as comma-separated string)
+- `docs` (string, stores file path for uploads)
+- `phone` (string)
+- `country` (string)
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+**Command used:**
+```bash
+php artisan make:model UserDetail -m
+```
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+### 2. Model Configuration
+The `UserDetail` model allows mass assignment using the `$fillable` property to protect against mass-assignment vulnerabilities. This specifies exactly which database columns can be updated directly from form requests.
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+```php
+// app/Models/UserDetail.php
+protected $fillable = [
+    'first_name', 'last_name', 'gender', 'email', 
+    'password', 'skills', 'docs', 'phone', 'country'
+];
+```
 
-## Learning Laravel
+### 3. Controller Logic (`UserDetailController.php`)
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+The `UserDetailController` is responsible for handling the logic of viewing, saving, and updating user details.
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+#### A. Strict Validation
+Incoming data is strictly validated before touching the database:
+- **Unique columns:** Email must be unique (`unique:user_details,email`). In updates, the current user ID is ignored so it doesn't fail validation on itself: `'email' => 'required|email|unique:user_details,email,' . $id`
+- **Passwords:** Must be verified against a confirmation field (`confirmed`).
+- **File Uploads:** Must adhere to specific MIME types and size constraints (`mimes:pdf,jpeg,png,jpg,gif|max:10240`).
+- **Arrays (Checkboxes):** Arrays (like `skills`) are validated element by element (`'skills.*' => 'string|distinct'`).
 
-## Laravel Sponsors
+#### B. Handling File Uploads
+Uploaded files (documents/images) are intercepted and moved to the `public/uploads` directory.
+```php
+if($request->hasFile('docs')){
+    $file = $request->file('docs');
+    $fileName = $file->getClientOriginalExtension(); // Saving extension (Note: generate a unique name for production)
+    $file->move(public_path('uploads'), $fileName);
+}
+```
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+#### C. Array to String Conversion (Checkboxes)
+Multiple skills selected via HTML checkboxes arrive as an array in the Request. They are bound together as a comma-separated string before storing in the database:
+```php
+$skills = implode(',', $request->skills);
+```
 
-### Premium Partners
+#### D. Password Hashing
+Passwords are never stored in plain text. The `bcrypt()` function hashes the password.
+```php
+'password' => bcrypt($request->password)
+```
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+#### E. Updating Data safely
+When updating, `UserDetail::findOrFail($id)` is used. This automatically returns a `404 Not Found` response if the requested ID doesn't exist. Furthermore, passwords and files are conditionally checked and only updated if new ones are provided in the request form.
 
-## Contributing
+---
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+## 🎯 Important Interview Questions (Revision)
 
-## Code of Conduct
+Review these common interview questions based on the exact logic implemented in this project:
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+1. **How do you handle file uploads in Laravel?**
+   - First, ensure the form has `enctype="multipart/form-data"`.
+   - Check if a file exists with `$request->hasFile('input_name')`.
+   - Retrieve it with `$request->file('input_name')`.
+   - Move it to a secure public or storage directory using `move(public_path('dir'), $filename)`.
 
-## Security Vulnerabilities
+2. **How do you save multiple HTML checkboxes (arrays) in a single database column?**
+   - The form input should be named as an array (e.g., `name="skills[]"`).
+   - In the controller, convert the array to a string using PHP's `implode(',', $request->skills)`.
+   - *Alternative:* Cast the attribute as an `array` or `json` inside the Laravel Model, and Laravel will serialize/deserialize it automatically.
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+3. **How does Laravel's Unique Validation work during an Update?**
+   - To prevent the system from flagging the user's *own* email as a duplicate while updating other fields, you append the User's primary key (ID) to the validation rule to ignore it: `'email' => 'unique:user_details,email,' . $id`.
 
-## License
+4. **What is the difference between `find()` and `findOrFail()`?**
+   - `find($id)` returns the model if found, or `null` if it isn't.
+   - `findOrFail($id)` attempts to look up a record by its Primary Key. If the record isn't found, it throws a `ModelNotFoundException`, which automatically renders standard HTTP 404 error page.
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+5. **How are passwords stored securely?**
+   - Passwords must be hashed using `bcrypt()` or Laravel's `Hash::make()` wrapper before saving to the database. They can then be compared securely during login using `Hash::check()`.
